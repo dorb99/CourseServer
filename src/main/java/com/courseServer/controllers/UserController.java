@@ -42,7 +42,7 @@ public class UserController {
 	}
 	
 	// Create
-	@PostMapping()
+	@PostMapping("/{name}/{age}")
 	public boolean create(@PathVariable(name = "name") String name, @PathVariable(name = "age") int age) {
 			return service.create(new User(name, age));
 	}
@@ -55,7 +55,7 @@ public class UserController {
 
 	
 	// Delete
-	@DeleteMapping("/{name}")
+	@DeleteMapping("/{id}")
 	public void delete(@PathVariable(name = "id") Long id) {
 		service.delete(id);
 	}
