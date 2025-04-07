@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User API Client</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>User Management</h1>
+
+    <div class="controls">
+        <fieldset>
+            <legend>User Data</legend>
+            <label for="userId">User ID:</label>
+            <input type="number" id="userId" placeholder="ID (for GET, PUT, PATCH, DELETE)">
+
+            <label for="userName">Name:</label>
+            <input type="text" id="userName" placeholder="Name (for POST, PUT)">
+
+            <label for="userAge">Age:</label>
+            <input type="number" id="userAge" placeholder="Age (for POST, PUT)">
+        </fieldset>
+
+         <fieldset>
+             <legend>Partial Update (PATCH)</legend>
+             <label for="patchData">JSON Patch Data:</label>
+             <textarea id="patchData" rows="3" placeholder='{"age": 35}'></textarea>
+             <small>Enter JSON data for partial updates (e.g., {"name": "New Name"}). Use with PATCH button.</small>
+         </fieldset>
+
+
+        <fieldset>
+            <legend>Actions</legend>
+            <button id="btnGetAll">Get All Users</button>
+            <button id="btnGetOne">Get User by ID</button>
+            <button id="btnCreate">Create User (POST)</button>
+            <button id="btnUpdate">Update User (PUT)</button>
+            <button id="btnPatch">Patch User (PATCH)</button>
+            <button id="btnDelete">Delete User by ID</button>
+        </fieldset>
+    </div>
+
+    <h2>API Response / Results</h2>
+    <pre id="results">API results will be shown here...</pre>
+
+    <script src="script.js"></script>
+</body>
+</html> 
