@@ -1,119 +1,113 @@
 package com.courseServer.services;
 
-import java.lang.reflect.Field;
+import java.net.HttpCookie;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
+import org.apache.catalina.connector.Response;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ReflectionUtils;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 
+import com.courseServer.entities.LoginDto;
 import com.courseServer.entities.User;
 import com.courseServer.entities.UserDto;
 import com.courseServer.exceptions.UserNotFoundException;
-import com.courseServer.repositories.UserRepo;
+import com.courseServer.repository.UserRepo;
+import com.courseServer.utils.JwtUtil;
+import com.courseServer.utils.Security;
+
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Service
 public class UserService {
 
 	private final UserRepo repository;
-	private final SecurityService securityService;
 	
 	@Autowired
-	public UserService(UserRepo repository, SecurityService securityService) {
-		this.repository = repository;
-		this.securityService = securityService;
+	public UserService(UserRepo repository) {
+		this.repository = repository; // Assign the injected repository
 	}
 	
 	// Get all
 	public List<User> getAll() {
-		return (List<User>) repository.findAll();
+		Iterable<User> users = repository.findAll();
+		System.out.println(users);
+		return (List<User>) users;
 	}
 
 	// Get one
 	public User getOne(Long id) {
-		// Find user or throw custom exception if not found
 		return repository.findById(id)
-				.orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+				.orElseThrow(()-> new UserNotFoundException("Incorrect id: "+id));
 	}
 	
-	// Find user by name (needed for login)
-	// Consider if username should be unique in a real application
-	public Optional<User> findByName(String name) {
-		// This assumes UserRepo has a method like findByName(String name)
-		// If not, you'll need to add it to the UserRepo interface.
-		return repository.findByName(name);
+	// Get one by name
+	public User getOneByName(String name) {
+		User user;
+		if((user = repository.findByName(name)) == null) {
+			new UserNotFoundException("Incorrect user name: "+name);
+		} 
+		return user;
 	}
-
-	// Create user with password hashing
+	
+	// Create
 	public User create(UserDto userDto) {
-		// Hash the password before saving
-		String hashedPassword = securityService.hashPassword(userDto.getPassword());
+		System.out.println("Starting at create service \t"+userDto.getPassword());
 
-		// Convert DTO to User entity, now including the *hashed* password
-		User user = new User(userDto.getName(), userDto.getAge(), hashedPassword);
-
-		// Consider adding logic to check if user with the same name already exists
-
-		return repository.save(user); // Save the user with the hashed password
+		// In bigger applications we will prefer to use a Mapper class that transform all classes to and from DTO.
+		User user = new User(userDto.getName(), userDto.getPassword(), userDto.getAge());
+		System.out.println("After creationg the user in service \t"+user.getPassword());
+		return repository.save(user);
 	}
 
-	// Update (PUT - Replace entire resource)
-	public User updateUser(Long id, UserDto userDto) {
-		// getOne will throw exception if user not found
+	// Update
+	public User update(Long id, UserDto userDto) {
 		User existingUser = getOne(id);
-		// Update entity fields from DTO
-		existingUser.setName(userDto.getName());
+
 		existingUser.setAge(userDto.getAge());
-
-		// Optionally handle password update via PUT (ensure DTO includes password)
-		if (userDto.getPassword() != null && !userDto.getPassword().isBlank()) {
-		    String hashedNewPassword = securityService.hashPassword(userDto.getPassword());
-		    existingUser.setPassword(hashedNewPassword);
-		}
-
-		return repository.save(existingUser); // Save and return updated user
-	}
-
-	// Update (PATCH - Partially update resource)
-	// Note: Using Map<String, Object> is simple but less type-safe.
-	// Consider JSON Patch (RFC 6902) or a dedicated Patch DTO for robustness.
-	public User patchUser(Long id, Map<String, Object> updates) {
-		// getOne will throw exception if user not found
-		User existingUser = getOne(id);
-
-		updates.forEach((key, value) -> {
-			if ("password".equals(key) && value instanceof String) {
-				// Hash the password if it's being patched
-				 String hashedPassword = securityService.hashPassword((String) value);
-				 existingUser.setPassword(hashedPassword);
-			} else {
-				Field field = ReflectionUtils.findField(User.class, key);
-				if (field != null && !key.equals("id")) { // Exclude ID and already handled password
-					field.setAccessible(true);
-					Object convertedValue = value;
-					if (field.getType() == int.class && value instanceof Number) {
-						convertedValue = ((Number) value).intValue();
-					} else if (field.getType() == Long.class && value instanceof Number) {
-						convertedValue = ((Number) value).longValue();
-					} else if (field.getType() == String.class && value != null) {
-						convertedValue = String.valueOf(value);
-					}
-					ReflectionUtils.setField(field, existingUser, convertedValue);
-				}
-			}
-		});
-
-		return repository.save(existingUser); // Save and return patched user
+		existingUser.setName(userDto.getName());
+		
+		return repository.save(existingUser);
 	}
 
 	// Delete
 	public void delete(Long id) {
-		// Check existence before deleting to provide specific feedback
-		if (!repository.existsById(id)) {
-			throw new UserNotFoundException("User not found with id: " + id);
-		}
 		repository.deleteById(id);
+	}
+	
+	public ResponseEntity<String> login(LoginDto loginUser) {
+		// In real application we will return a user - the user who logged in. to save his information, to use the account
+		User user = this.getOneByName(loginUser.getName());
+		if(Security.checkPassword(loginUser.getPassword(), user.getPassword())) {
+			String jwtToken = JwtUtil.createToken(user.getName());
+			
+			// when using the default springboot login action
+//			public ResponseEntity<?> login(@RequestParam String username,
+//                    @RequestParam String password,
+//                    HttpServletResponse response) 
+//			HttpCookie jwtCookie = new HttpCookie("Ticket", token);
+//			jwtCookie.setHttpOnly(true);
+//			jwtCookie.setPath("/catalog");
+//			jwtCookie.setMaxAge(3600);
+//			response.addCookie(jwtCookie);
+			
+			HttpHeaders header = new HttpHeaders();
+			header.add("Set-Cookie", String.format("token=%s; Path=/; Max-Age=3600; HttpOnly;", jwtToken));
+			
+			return ResponseEntity.ok()
+					.headers(header)
+					.body("You are now logged in with a token");
+		} else {
+			return ResponseEntity.status(401)
+					.body("Incrrect password or name");
+		}
 	}
 }
