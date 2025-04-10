@@ -1,7 +1,7 @@
 package com.courseServer.controllers;
 
-import com.courseServer.enteties.User;
-import com.courseServer.enteties.UserDto;
+import com.courseServer.entities.User;
+import com.courseServer.entities.UserDto;
 import com.courseServer.exceptions.UserNotFoundException;
 import com.courseServer.services.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -106,5 +106,58 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(updates)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.age").value(35));
+    }
+
+    @Test
+    void testGetUserById() {
+        User user = new User("testuser", "password", "Test User", 25);
+        when(userService.getUserById(1L)).thenReturn(user);
+
+        UserDto result = userController.getUserById(1L);
+        assertEquals("Test User", result.getName());
+        assertEquals(25, result.getAge());
+    }
+
+    @Test
+    void testCreateUser() {
+        UserDto userDto = new UserDto(null, "New User", 30);
+        User user = new User("newuser", "password", "New User", 30);
+        when(userService.createUser(any(User.class))).thenReturn(user);
+
+        ResponseEntity<UserDto> response = userController.createUser(userDto);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertEquals("New User", response.getBody().getName());
+    }
+
+    @Test
+    void testUpdateUser() {
+        UserDto userDto = new UserDto(1L, "Updated User", 35);
+        User user = new User("updateduser", "password", "Updated User", 35);
+        when(userService.updateUser(eq(1L), any(User.class))).thenReturn(user);
+
+        UserDto result = userController.updateUser(1L, userDto);
+        assertEquals("Updated User", result.getName());
+        assertEquals(35, result.getAge());
+    }
+
+    @Test
+    void testPatchUser() {
+        User user = new User("patcheduser", "password", "Patched User", 40);
+        when(userService.patchUser(eq(1L), any(Map.class))).thenReturn(user);
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("name", "Patched User");
+        updates.put("age", 40);
+
+        UserDto result = userController.patchUser(1L, updates);
+        assertEquals("Patched User", result.getName());
+        assertEquals(40, result.getAge());
+    }
+
+    @Test
+    void testDeleteUser() {
+        doNothing().when(userService).deleteUser(1L);
+        userController.deleteUser(1L);
+        verify(userService, times(1)).deleteUser(1L);
     }
 }

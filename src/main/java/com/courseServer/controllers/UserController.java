@@ -20,8 +20,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import com.courseServer.enteties.User;
-import com.courseServer.enteties.UserDto;
+import com.courseServer.entities.User;
+import com.courseServer.entities.UserDto;
 import com.courseServer.services.UserService;
 
 import jakarta.validation.Valid;
@@ -39,6 +39,7 @@ public class UserController {
 	// --- Helper method for User -> UserDto conversion ---
 	// In a real app, use a dedicated Mapper class (e.g., using MapStruct)
 	private UserDto convertToDto(User user) {
+		// Use the constructor that EXCLUDES the password for responses
 		return new UserDto(user.getName(), user.getAge());
 	}
 	// --------------------------------------------------
